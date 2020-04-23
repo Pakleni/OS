@@ -1,12 +1,12 @@
-#include "pcb.h"
-#include "thread.h"
 #include "List.h"
-#include "Semaphor.h"
-#include "kernel.h"
 #include <dos.h>
 #include <stdio.h>
 
+#include "Kernel.h"
+#include "PCB.h"
 #include "SCHEDULE.H"
+#include "Semaphor.h"
+#include "Thread.h"
 
 #define lock asm cli
 #define unlock asm sti
@@ -59,9 +59,6 @@ void PCB::wrapper(){
 
 
 
-
-
-
 //CONTEXT SWITCH
 
 //CONTEXT SWITCH CONTROL
@@ -82,13 +79,18 @@ volatile Thread * PCB::idle = 0;
 
 class idleThread : public Thread{
 public:
-	idleThread() : Thread(128, 1){	}
-	void run(){
-		while(1);
-	}
+	idleThread();
+	void run();
 };
 
-volatile int cntr = 1;
+
+idleThread::idleThread() : Thread(4096, 1){}
+
+void idleThread::run(){
+	while(1);
+}
+
+volatile Time cntr = 1;
 volatile int context_switch_on_demand = 0;
 
 unsigned tsp;
@@ -96,13 +98,7 @@ unsigned tss;
 
 //sync
 void interrupt timer(...){
-	if(!PCB::running) {
-	#ifndef BCC_BLOCK_IGNORE
-		asm int 0x60;
-	#endif
-		return;
-	}
-	if (!context_switch_on_demand) cntr--;
+	if (!context_switch_on_demand && cntr) --cntr;
 	if (!PCB::blockCS && (context_switch_on_demand || (PCB::running->timeSlice != 0 && cntr == 0))) {
 
 		if (!PCB::running->finished){
@@ -148,6 +144,8 @@ void interrupt timer(...){
 		#endif
 
 	}
+
+
 	#ifndef BCC_BLOCK_IGNORE
 	if(!context_switch_on_demand) asm int 0x60
 	else context_switch_on_demand = 0;
@@ -159,12 +157,16 @@ void interrupt timer(...){
 
 
 //async
+
+extern void tick();
+
 void interrupt userTimer(...){
-	for (KernelSem::semaphoreList.begin();KernelSem::semaphoreList.get();KernelSem::semaphoreList.next()){
-			(*KernelSem::semaphoreList.get())--;
+
+	if(!context_switch_on_demand) for (KernelSem::semaphoreList.begin();KernelSem::semaphoreList.get();KernelSem::semaphoreList.next()){
+			(*(KernelSem::semaphoreList.get()))--;
 	}
 
-	//tick();
+	tick();
 }
 
 void dispatch(){

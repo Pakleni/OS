@@ -1,5 +1,6 @@
 #include "Event.h"
-#include "kernel.h"
+
+#include "Kernel.h"
 
 Event::Event(IVTNo ivtNo): myImpl(new KernelEv(ivtNo)){}
 

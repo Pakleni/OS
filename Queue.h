@@ -3,9 +3,9 @@
 template<class T>
 class Queue{
 	struct Node {
-		T * info;
+		T info;
 		Node * next;
-		Node(T * t): info(t), next(0){}
+		Node(T t): info(t), next(0){}
 	};
 
 	Node *front;
@@ -14,14 +14,13 @@ class Queue{
 public:
 	Queue();
 	~Queue();
-	void insert(T *);
-	T * remove();
+	void insert(T);
+	T remove();
 
 	void begin();
 	void next();
-	T * get();
-
-	T * del();
+	T get();
+	T del();
 };
 
 template<class T>
@@ -32,15 +31,15 @@ Queue<T>::Queue(): front(0), back(0), i(0){
 template<class T>
 Queue<T>::~Queue(){
 	Node * temp;
-	while (front){
-		temp = front;
-		front = front->next;
-		delete temp;
-	}
+    while (front){
+        temp = front->next;
+        delete front;
+        front = temp;
+    }
 }
 
 template<class T>
-void Queue<T>::insert(T * t){
+void Queue<T>::insert(T t){
 
 	Node * temp = new Node(t);
 	if (!front){
@@ -49,18 +48,20 @@ void Queue<T>::insert(T * t){
 	}
 	else {
 		back->next = temp;
-		back = back->next;
+		back = temp;
 	}
 }
 
 template<class T>
-T * Queue<T>::remove(){
-	T * info;
+T Queue<T>::remove(){
+	T info;
+
 	if (!front) info = 0;
 	else if (front == back){
 		info = front->info;
 		delete front;
-		back = front = 0;
+		back = 0;
+		front = 0;
 	}
 	else {
 		info = front->info;
@@ -84,15 +85,16 @@ void Queue<T>::next(){
 }
 //gets iterator
 template<class T>
-T * Queue<T>::get(){
+T Queue<T>::get(){
 	if (i) return i->info;
 	else return 0;
 }
 template<class T>
-T * Queue<T>::del(){
-	T * info;
+T Queue<T>::del(){
+	T info;
 	if (!i) info = 0;
 	else if (i == front){
+        i = 0;
 		info = this->remove();
 	}
 	else {
@@ -100,14 +102,14 @@ T * Queue<T>::del(){
 
 		Node * temp = front;
 
-		while (temp->next != i) temp = temp-> next;
+		while (temp->next != i) temp = temp->next;
 
-		i = temp;
-		temp = temp->next;
+		temp->next = i->next;
 
-		i->next = temp->next;
+        if (back == i) back = temp;
+		delete i;
 
-		delete temp;
+        i = temp;
 	}
 
 	return info;

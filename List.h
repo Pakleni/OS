@@ -3,9 +3,9 @@
 template<class T>
 class List{
 	struct Node{
-		T * info;
+		T info;
 		Node * next;
-		Node(T * t): info(t), next(0){}
+		Node(T t): info(t), next(0){}
 	};
 	Node * head;
 	Node * i;
@@ -13,11 +13,11 @@ class List{
 public:
 	List();
 	~List();
-	void operator+=(T *);
-	void operator-=(T *);
+	void operator+=(T);
+	void operator-=(T);
 	void begin();
 	void next();
-	T * get();
+	T get();
 };
 template<class T>
 List<T>::List() : head(0), i(0) {}
@@ -32,7 +32,7 @@ List<T>::~List(){
 }
 //Called when creating a Thread
 template<class T>
-void List<T>::operator+=(T * t){
+void List<T>::operator+=(T t){
 
 	Node * temp = new Node(t);
 
@@ -51,7 +51,7 @@ void List<T>::operator+=(T * t){
 }
 //Called when deleting a Thread
 template<class T>
-void List<T>::operator-=(T * t){
+void List<T>::operator-=(T t){
 
 	Node * curr = head;
 	Node * temp;
@@ -82,7 +82,7 @@ void List<T>::next(){
 }
 //gets iterator
 template<class T>
-T * List<T>::get(){
+T List<T>::get(){
 	if (i) return i->info;
 	else return 0;
 }

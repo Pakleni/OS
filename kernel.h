@@ -3,6 +3,8 @@
 #include "Queue.h"
 #include "List.h"
 
+#include "IVTEntry.h"
+
 class Semaphore;
 class PCB;
 
@@ -12,12 +14,18 @@ typedef unsigned char IVTNo;
 
 typedef unsigned int Time;
 
+#define PREPAREENTRY(x,y)									\
+	void interrupt inter##x(...){               			\
+		IVTEntry::getIVTE(x)->event->signal();				\
+		if(y) {IVTEntry::getIVTE(x)->oldInter();}}  	 	\
+	IVTEntry * ___ivt##x = new IVTEntry(x, inter##x);
+
 class KernelSem{
 public:
-	static List<KernelSem> semaphoreList;
+	static List<KernelSem *> semaphoreList;
 
 	int val;
-	Queue<PCB> blocked;
+	Queue<PCB *> blocked;
 
 	KernelSem(int);
 	~KernelSem();
@@ -25,7 +33,7 @@ public:
 	void block();
 	void deblock();
 
-	void operator--();
+	void operator--(int);
 
 	int wait(Time);
 	int signal(int);

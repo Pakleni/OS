@@ -9,17 +9,10 @@
 #define IVTENTRY_H_
 
 #include "dos.h"
-#include "kernel.h"
 
 typedef unsigned char IVTNo;
 
 typedef void interrupt (*pInterrupt)(...);
-
-#define PREPAREENTRY(x,y)									\
-	void interrupt inter##x(...){               			\
-		IVTEntry::getIVTE(x)->event->signal();				\
-		if(y) {IVTEntry::getIVTE(x)->oldInter();}}  	 	\
-	IVTEntry * ___ivt##x = new IVTEntry(x, inter##x);
 
 class KernelEv;
 

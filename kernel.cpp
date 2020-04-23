@@ -1,7 +1,4 @@
-#include "event.h"
-#include "kernel.h"
 #include "Queue.h"
-#include "pcb.h"
 #include "List.h"
 #include "SCHEDULE.H"
 
@@ -10,6 +7,10 @@
 #include "dos.h"
 
 #include "stdio.h"
+
+#include "Event.h"
+#include "Kernel.h"
+#include "PCB.h"
 
 extern volatile int context_switch_on_demand;
 
@@ -20,7 +21,7 @@ extern void dispatch();
 
 //KERNEL SEM
 
-List<KernelSem> KernelSem::semaphoreList;
+List<KernelSem *> KernelSem::semaphoreList;
 
 KernelSem::KernelSem(int init): val(init){
 	semaphoreList+=this;
@@ -45,17 +46,14 @@ void KernelSem::deblock(){
 	Scheduler::put(temp);
 }
 
-void KernelSem::operator--(){
+void KernelSem::operator--(int){
 	for (blocked.begin();blocked.get();blocked.next()){
 		if (blocked.get()->blockedTime > 0){
 			if (--(blocked.get()->blockedTime) == 0){
-
-
 				PCB * temp = blocked.del();
 				temp->blocked = 0;
 				++val;
 				Scheduler::put(temp);
-
 			}
 		}
 	}
@@ -63,29 +61,31 @@ void KernelSem::operator--(){
 
 int KernelSem::wait(Time maxTimeToWait){
 
-	int ret = 1;
+	lockCS();
 	if (--val<0){
-		lockCS();
+
 		PCB::running->blockedTime = maxTimeToWait;
 
 		block();
 
-		if (maxTimeToWait && PCB::running->blockedTime == 0){
-			val++;
-			ret = 0;
-		}
-
 		unlockCS();
 
-		context_switch_on_demand = 1;
 		dispatch();
+
+		if (maxTimeToWait && PCB::running->blockedTime == 0){
+			return 0;
+		}
 
 		PCB::running->blockedTime = 0;
 	}
-	return ret;
+	else {
+		unlockCS();
+	}
+	return 1;
 }
 
 int KernelSem::signal(int n){
+
 	lockCS();
 	int ret;
 
@@ -140,7 +140,6 @@ void KernelEv::wait(){
 		block();
 		unlockCS();
 
-		context_switch_on_demand = 1;
 		dispatch();
 	}
 }

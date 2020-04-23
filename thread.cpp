@@ -1,14 +1,14 @@
-#include "thread.h";
-#include "pcb.h";
-#include "kernel.h"
 #include "List.h"
 #include "SCHEDULE.H"
 
 #include "stdio.h"
+#include "Kernel.h"
+#include "Thread.h"
+#include "PCB.h"
 
 //const StackSize maxStackSize = 65536/sizeof(unsigned);
 
-List<Thread> threadList;
+List<Thread *> threadList;
 
 Thread::Thread (StackSize stackSize, Time timeSlice){
 	myPCB = new PCB(stackSize,timeSlice, this);

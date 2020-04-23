@@ -1,7 +1,7 @@
-#include"semaphor.h"
-#include"kernel.h"
-#include "pcb.h"
 #include "stdio.h"
+#include "Kernel.h"
+#include "Semaphor.h"
+#include "PCB.h"
 
 typedef unsigned int Time;
 

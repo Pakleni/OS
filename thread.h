@@ -1,7 +1,7 @@
 #ifndef _thread_h_
 #define _thread_h_
 
-#include"stdio.h"
+#include "PCB.h"
 
 typedef unsigned long StackSize;
 const StackSize defaultStackSize = 4096;
@@ -12,7 +12,7 @@ const Time defaultTimeSlice = 2;
 
 typedef int ID;
 
-class PCB;
+
 
 class Thread {
 
