@@ -146,6 +146,10 @@ void interrupt timer(...){
 	}
 
 
+	if(!context_switch_on_demand) for (KernelSem::semaphoreList.begin();KernelSem::semaphoreList.get();KernelSem::semaphoreList.next()){
+			(*(KernelSem::semaphoreList.get()))--;
+	}
+
 	#ifndef BCC_BLOCK_IGNORE
 	if(!context_switch_on_demand) asm int 0x60
 	else context_switch_on_demand = 0;
@@ -161,11 +165,6 @@ void interrupt timer(...){
 extern void tick();
 
 void interrupt userTimer(...){
-
-	if(!context_switch_on_demand) for (KernelSem::semaphoreList.begin();KernelSem::semaphoreList.get();KernelSem::semaphoreList.next()){
-			(*(KernelSem::semaphoreList.get()))--;
-	}
-
 	tick();
 }
 
