@@ -30,6 +30,8 @@ PCB::PCB(StackSize size, Time ts, Thread * th): id(idCounter++), stack(0), timeS
 		handlers[i] = running->handlers[i];
 	}
 
+	blockSignal = running->blockSignal;
+
 	mySem = new KernelSem(0);
 
 	stack = new unsigned [size];
@@ -157,8 +159,8 @@ void interrupt timer(...){
 					Scheduler::put( (PCB *) PCB::running );
 			}
 			else {
-//				PCB::running->myThread->myPCB = 0;
-//				delete PCB::running;
+				delete PCB::running->stack;
+				PCB::running->stack = 0;
 			}
 		}
 

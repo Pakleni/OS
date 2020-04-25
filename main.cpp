@@ -6,7 +6,7 @@
 #include "Semaphor.h"
 #include "Thread.h"
 
-#include "Scheduler.h"
+#include "Schedule.h"
 
 void inic();
 void restore();
