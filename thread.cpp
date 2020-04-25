@@ -6,8 +6,6 @@
 #include "Thread.h"
 #include "PCB.h"
 
-//const StackSize maxStackSize = 65536/sizeof(unsigned);
-
 List<Thread *> threadList;
 
 Thread::Thread (StackSize stackSize, Time timeSlice){
@@ -40,11 +38,9 @@ Thread * Thread::getThreadById(ID id){
 }
 
 void Thread::waitToComplete(){
-#ifndef BCC_BLOCK_IGNORE
 
-	if(myPCB->finished == 0) myPCB->mySem->wait(0);
+	if(myPCB != PCB::running && myPCB->finished == 0) myPCB->mySem->wait(0);
 
-#endif
 }
 
 void Thread::start(){
@@ -52,4 +48,38 @@ void Thread::start(){
 		Scheduler::put(myPCB);
 		myPCB->started = 1;
 	}
+}
+
+//signals
+
+void Thread::signal(SignalId signal){
+	myPCB->signal(signal);
+}
+
+void Thread::registerHandler(SignalId signal, SignalHandler handler){
+	myPCB->registerHandler(signal, handler);
+}
+
+void Thread::unregisterAllHandlers(SignalId id){
+	myPCB->unregisterHandler(id);
+}
+
+void Thread::swap(SignalId id, SignalHandler hand1, SignalHandler hand2){
+	myPCB->swap(id, hand1, hand2);
+}
+
+void Thread::blockSignal(SignalId signal){
+	myPCB->blockSignal |= 1 << signal;
+}
+
+void Thread::blockSignalGlobally(SignalId signal){
+	PCB::blockSignalGlobal |= 1 << signal;
+}
+
+void Thread::unblockSignal(SignalId signal){
+	myPCB->blockSignal &= -1 - 1 << signal;
+}
+
+void Thread::unblockSignalGlobally(SignalId signal){
+	PCB::blockSignalGlobal &= -1 - 1 << signal;
 }

@@ -14,9 +14,6 @@
 
 extern volatile int context_switch_on_demand;
 
-extern void lockCS();
-extern void unlockCS();
-
 extern void dispatch();
 
 //KERNEL SEM
@@ -47,7 +44,7 @@ void KernelSem::deblock(){
 }
 
 void KernelSem::operator--(int){
-	for (blocked.begin();blocked.get();blocked.next()){
+	for (blocked.begin();blocked.end();blocked.next()){
 		if (blocked.get()->blockedTime > 0){
 			if (--(blocked.get()->blockedTime) == 0){
 				PCB * temp = blocked.del();
@@ -61,14 +58,14 @@ void KernelSem::operator--(int){
 
 int KernelSem::wait(Time maxTimeToWait){
 
-	lockCS();
+	PCB::lockCS();
 	if (--val<0){
 
 		PCB::running->blockedTime = maxTimeToWait;
 
 		block();
 
-		unlockCS();
+		PCB::unlockCS();
 
 		dispatch();
 
@@ -79,14 +76,13 @@ int KernelSem::wait(Time maxTimeToWait){
 		PCB::running->blockedTime = 0;
 	}
 	else {
-		unlockCS();
+		PCB::unlockCS();
 	}
 	return 1;
 }
 
 int KernelSem::signal(int n){
-
-	lockCS();
+	PCB::lockCS();
 	int ret;
 
 	if (n > 0){
@@ -105,7 +101,7 @@ int KernelSem::signal(int n){
 	}
 	else ret = n;
 
-	unlockCS();
+	PCB::unlockCS();
 	return ret;
 }
 
@@ -130,15 +126,14 @@ void KernelEv::deblock(){
 }
 
 void KernelEv::wait(){
-
 	if (PCB::running->id != tId) return;
 
 	if (val == 0){
-		lockCS();
+		PCB::lockCS();
 		--val;
 
 		block();
-		unlockCS();
+		PCB::unlockCS();
 
 		dispatch();
 	}
@@ -146,10 +141,10 @@ void KernelEv::wait(){
 
 void KernelEv::signal(){
 	if (val == -1){
-		lockCS();
+		PCB::lockCS();
 		++val;
 
 		deblock();
-		unlockCS();
+		PCB::unlockCS();
 	}
 }

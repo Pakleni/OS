@@ -6,20 +6,37 @@
 #include "Semaphor.h"
 #include "Thread.h"
 
+#include "Scheduler.h"
+
 void inic();
 void restore();
 
 extern int userMain(int argc, char * argv[]);
 
+
+class mainThread : public Thread{
+	mainThread();
+	void run();
+	friend int main(int argc, char * argv[]);
+};
+
+
+mainThread::mainThread() : Thread(0, defaultTimeSlice){
+
+};
+
+void mainThread::run(){}
+
+
 int main(int argc, char * argv[]){
+
+	mainThread main;
+	main.start();
+	PCB::running = Scheduler::get();
 
 	inic();
 
-	PCB::running = new PCB(0, defaultTimeSlice, 0);
-
 	int ret = userMain(argc, argv);
-
-	delete PCB::running;
 
 	restore();
 

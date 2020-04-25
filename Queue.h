@@ -6,6 +6,7 @@ class Queue{
 		T info;
 		Node * next;
 		Node(T t): info(t), next(0){}
+		Node(const Node& n): info(n.info), next(n.next){}
 	};
 
 	Node *front;
@@ -13,19 +14,49 @@ class Queue{
 	Node *i;
 public:
 	Queue();
+	Queue(const Queue<T>&);
+
 	~Queue();
+	Queue<T>& operator=(const Queue<T>&);
 	void insert(T);
 	T remove();
 
 	void begin();
 	void next();
-	T get();
+	int end();
+	T& get();
 	T del();
 };
 
 template<class T>
-Queue<T>::Queue(): front(0), back(0), i(0){
+Queue<T>::Queue(): front(0), back(0), i(0){}
 
+template<class T>
+Queue<T>::Queue(const Queue<T>& q): front(0), back(0), i(0){
+	if(q.front){
+		front = new Node(*q.front);
+
+		Node * curr = front;
+		while (curr->next){
+			curr = curr->next;
+		}
+		back = curr;
+	}
+}
+
+template<class T>
+Queue<T>& Queue<T>::operator =(const Queue<T> & q){
+	if(q.front){
+			front = new Node(*q.front);
+
+			Node * curr = front;
+			while (curr->next){
+				curr = curr->next;
+			}
+			back = curr;
+		}
+
+		return *this;
 }
 
 template<class T>
@@ -85,9 +116,8 @@ void Queue<T>::next(){
 }
 //gets iterator
 template<class T>
-T Queue<T>::get(){
-	if (i) return i->info;
-	else return 0;
+T& Queue<T>::get(){
+	return i->info;
 }
 template<class T>
 T Queue<T>::del(){
@@ -113,5 +143,12 @@ T Queue<T>::del(){
 	}
 
 	return info;
+}
+
+template<class T>
+int Queue<T>::end(){
+	if (i) return 1;
+
+	return 0;
 }
 #endif
