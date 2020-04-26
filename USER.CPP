@@ -8,16 +8,16 @@
 #include <assert.h>
 
 #include "bounded.h"
-#include "Event.h"
 #include "intLock.h"
 #include "keyevent.h"
 #include "user.h"
-#include "Semaphor.h"
+#include "Event.h"
+#include "semaphor.h"
 
 //---------------------------------------------------------------------------//
 //  Otkomentarisati ukoliko se testiraju signali
 //---------------------------------------------------------------------------//
-#define SIGNAL
+ #define SIGNAL
 //---------------------------------------------------------------------------//
 
 //---------------------------------------------------------------------------//
@@ -168,7 +168,7 @@ int userMain (int argc, char* argv[])
 	int i;
 	
 	con = new Consumer(buff);
-
+	  
 	con->start();
 
 	for (i=0; i<N; i++){
@@ -184,7 +184,7 @@ int userMain (int argc, char* argv[])
   
 	kev = new KeyboardEvent(buff);
 	intUnlock
-
+	
 	kev->start();
 
 #ifdef SIGNAL

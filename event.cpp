@@ -1,10 +1,20 @@
 #include "Event.h"
-
 #include "Kernel.h"
 
-Event::Event(IVTNo ivtNo): myImpl(new KernelEv(ivtNo)){}
+void lockCS();
+void unlockCS();
 
-Event::~Event(){delete myImpl;}
+Event::Event(IVTNo ivtNo): myImpl(0){
+	lockCS();
+	myImpl = new KernelEv(ivtNo);
+	unlockCS();
+}
+
+Event::~Event(){
+	lockCS();
+	delete myImpl;
+	unlockCS();
+}
 
 void Event::wait(){myImpl->wait();}
 

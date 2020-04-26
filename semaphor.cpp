@@ -1,13 +1,23 @@
 #include "stdio.h"
 #include "Kernel.h"
 #include "Semaphor.h"
-#include "PCB.h"
+
+void lockCS();
+void unlockCS();
 
 typedef unsigned int Time;
 
-Semaphore::Semaphore(int init): myImpl(new KernelSem(init)){}
+Semaphore::Semaphore(int init): myImpl(){
+	lockCS();
+	myImpl = new KernelSem(init);
+	unlockCS();
+}
 
-Semaphore::~Semaphore(){delete myImpl;}
+Semaphore::~Semaphore(){
+	lockCS();
+	delete myImpl;
+	unlockCS();
+}
 
 int Semaphore::wait(Time maxTimeToWait){return myImpl->wait(maxTimeToWait);}
 

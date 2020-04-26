@@ -1,7 +1,6 @@
 #ifndef _pcb_h_
 #define _pcb_h_
 
-#include "List.h"
 #include "Queue.h"
 
 typedef unsigned long StackSize;
@@ -13,14 +12,14 @@ class KernelSem;
 typedef void (*SignalHandler)();
 typedef unsigned SignalId;
 
+void lockCS();
+void unlockCS();
+
 class PCB{
 	static int idCounter;
 public:
 	static volatile PCB * running;
-	static int blockCS;
 	static int blockSignalGlobal;
-	static void PCB::lockCS();
-	static void PCB::unlockCS();
 
 	PCB(StackSize, Time, Thread *);
 	~PCB();
@@ -38,8 +37,7 @@ public:
 
 	int blockSignal;
 
-	List<SignalHandler> handlers[16];
-
+	Queue<SignalHandler> handlers[16];
 	Queue<SignalId> onHold;
 
 	void registerHandler(SignalId signal, SignalHandler handler);
@@ -63,14 +61,12 @@ class Idle{
 private:
 	static const int STACK_SIZE;
 	unsigned * stack;
-	Idle();
-	~Idle();
 	static void f();
 public:
-	static Idle* idle;
-	static int init();
-	static void end();
-
+	Idle();
+	~Idle();
+	static Idle idle;
+	static int isIdle;
 	unsigned ss;
 	unsigned sp;
 };

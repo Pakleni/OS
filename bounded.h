@@ -11,7 +11,7 @@
 
 
 
-#include "Semaphor.h"
+#include "semaphor.h"
 
 
 

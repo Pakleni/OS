@@ -6,16 +6,21 @@
 #include "Thread.h"
 #include "PCB.h"
 
-List<Thread *> threadList;
+
+static List<Thread *> _threadList;
 
 Thread::Thread (StackSize stackSize, Time timeSlice){
+	lockCS();
 	myPCB = new PCB(stackSize,timeSlice, this);
-	threadList+=this;
+	_threadList+=this;
+	unlockCS();
 }
 
 Thread::~Thread(){
+	lockCS();
 	delete myPCB;
-	threadList-=this;
+	_threadList-=this;
+	unlockCS();
 }
 
 ID Thread::getId(){
@@ -27,9 +32,9 @@ ID Thread::getRunningId(){
 }
 
 Thread * Thread::getThreadById(ID id){
-	for (threadList.begin(); threadList.get(); threadList.next()){
-		if (threadList.get()->myPCB->id == id){
-			return threadList.get();
+	for (List<Thread*>::iterator i = _threadList.begin(); i != _threadList.end(); ++i){
+		if ((*i)->myPCB->id == id){
+			return *i;
 		}
 	}
 
@@ -38,7 +43,6 @@ Thread * Thread::getThreadById(ID id){
 }
 
 void Thread::waitToComplete(){
-
 	if(myPCB != PCB::running && myPCB->finished == 0) myPCB->mySem->wait(0);
 
 }

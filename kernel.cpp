@@ -1,5 +1,4 @@
-#include "Queue.h"
-#include "List.h"
+#include "Kernel.h"
 #include "SCHEDULE.H"
 
 #include "IVTEntry.h"
@@ -9,10 +8,7 @@
 #include "stdio.h"
 
 #include "Event.h"
-#include "Kernel.h"
 #include "PCB.h"
-
-extern volatile int context_switch_on_demand;
 
 extern void dispatch();
 
@@ -29,14 +25,19 @@ KernelSem::~KernelSem(){
 }
 
 void KernelSem::block(){
-
-	blocked.insert((PCB *)PCB::running);
+	blocked.push((PCB *)PCB::running);
 
 	PCB::running->blocked = 1;
 }
 
 void KernelSem::deblock(){
-	PCB * temp = blocked.remove();
+	PCB * temp = blocked.pop();
+
+	if (!temp){
+		lockCS();
+		printf("<SEM> Fatal Error, Nothing Blocked\n");
+		unlockCS();
+	}
 
 	temp->blocked = 0;
 
@@ -44,10 +45,16 @@ void KernelSem::deblock(){
 }
 
 void KernelSem::operator--(int){
-	for (blocked.begin();blocked.end();blocked.next()){
-		if (blocked.get()->blockedTime > 0){
-			if (--(blocked.get()->blockedTime) == 0){
-				PCB * temp = blocked.del();
+	for (Queue<PCB*>::iterator i = blocked.begin(); i != blocked.end();++i){
+		if ((*i)->blockedTime > 0){
+			if (--((*i)->blockedTime) == 0){
+				PCB * temp = blocked.erase(i);
+				if (!temp){
+					lockCS();
+					printf("<SEM> Fatal Error, can't decrease time on null\n");
+					unlockCS();
+					continue;
+				}
 				temp->blocked = 0;
 				++val;
 				Scheduler::put(temp);
@@ -58,14 +65,14 @@ void KernelSem::operator--(int){
 
 int KernelSem::wait(Time maxTimeToWait){
 
-	PCB::lockCS();
+	lockCS();
 	if (--val<0){
 
 		PCB::running->blockedTime = maxTimeToWait;
 
 		block();
 
-		PCB::unlockCS();
+		unlockCS();
 
 		dispatch();
 
@@ -76,13 +83,14 @@ int KernelSem::wait(Time maxTimeToWait){
 		PCB::running->blockedTime = 0;
 	}
 	else {
-		PCB::unlockCS();
+		unlockCS();
 	}
+
 	return 1;
 }
 
 int KernelSem::signal(int n){
-	PCB::lockCS();
+	lockCS();
 	int ret;
 
 	if (n > 0){
@@ -101,7 +109,7 @@ int KernelSem::signal(int n){
 	}
 	else ret = n;
 
-	PCB::unlockCS();
+	unlockCS();
 	return ret;
 }
 
@@ -120,6 +128,11 @@ void KernelEv::block(){
 }
 
 void KernelEv::deblock(){
+	if (!blocked){
+		lockCS();
+		printf("<EVENT> Nothing blocked\n");
+		unlockCS();
+	}
 	blocked->blocked = 0;
 	Scheduler::put(blocked);
 	blocked = 0;
@@ -129,11 +142,11 @@ void KernelEv::wait(){
 	if (PCB::running->id != tId) return;
 
 	if (val == 0){
-		PCB::lockCS();
+		lockCS();
 		--val;
 
 		block();
-		PCB::unlockCS();
+		unlockCS();
 
 		dispatch();
 	}
@@ -141,10 +154,10 @@ void KernelEv::wait(){
 
 void KernelEv::signal(){
 	if (val == -1){
-		PCB::lockCS();
+		lockCS();
 		++val;
 
 		deblock();
-		PCB::unlockCS();
+		unlockCS();
 	}
 }

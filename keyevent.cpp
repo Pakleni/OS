@@ -9,9 +9,9 @@
 #include <dos.h>
 
 #include "bounded.h"
-#include "Event.h"
 #include "intLock.h"
 #include "user.h"
+#include "Event.h"
 
 PREPAREENTRY(9,0);
   

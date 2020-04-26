@@ -1,5 +1,4 @@
 #include "IVTEntry.h"
-#include "dos.h"
 #define N_INTER 256
 
 IVTEntry * IVTEntry::IVTEList[N_INTER] = {0};
@@ -19,7 +18,6 @@ IVTEntry::~IVTEntry(){
 }
 
 void IVTEntry::restore(){
-
 	for (int i = 0; i < N_INTER; i++){
 		delete IVTEList[i];
 	}

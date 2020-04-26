@@ -1,18 +1,14 @@
-#include "List.h"
-#include <dos.h>
-#include <stdio.h>
-
-#include "Kernel.h"
 #include "PCB.h"
-#include "SCHEDULE.H"
-#include "Semaphor.h"
+#include <dos.h>
+#include "List.h"
+#include "Kernel.h"
 #include "Thread.h"
+#include "SCHEDULE.H"
 
 #define lock asm cli
 #define unlock asm sti
 
 int PCB::idCounter = 0;
-int PCB::blockCS = 0;
 volatile PCB * PCB::running = 0;
 int PCB::blockSignalGlobal = 0;
 
@@ -32,10 +28,11 @@ PCB::PCB(StackSize size, Time ts, Thread * th): id(idCounter++), stack(0), timeS
 
 	blockSignal = running->blockSignal;
 
+
+	lockCS();
 	mySem = new KernelSem(0);
-
 	stack = new unsigned [size];
-
+	unlockCS();
 
 	stack[size - 1] = 0x200;
 
@@ -81,13 +78,15 @@ void PCB::wrapper(){
 //CONTEXT SWITCH CONTROL
 
 
-
-void PCB::lockCS(){
-	PCB::blockCS = 1;
+int blockCS = 0;
+List<int> lockStack;
+void lockCS(){
+	lockStack+=(blockCS);
+	blockCS = 1;
 }
 
-void PCB::unlockCS(){
-	PCB::blockCS = 0;
+void unlockCS(){
+	blockCS = lockStack.pop();
 }
 
 volatile Time cntr = 1;
@@ -98,14 +97,20 @@ unsigned tss;
 
 //sync
 
-Idle * Idle::idle = 0;
 const int Idle::STACK_SIZE = defaultStackSize;
+
+Idle Idle::idle;
 
 void Idle::f(){
 	while(1){asm hlt;}
 }
 
-Idle::Idle(): stack(new unsigned[STACK_SIZE]), ss(0), sp(0){
+Idle::Idle(): stack(0), ss(0), sp(0){
+
+	lockCS();
+	stack = new unsigned[STACK_SIZE];
+	unlockCS();
+
 	stack[STACK_SIZE - 1] = 0x200;
 
 	void (*body)();
@@ -124,34 +129,28 @@ Idle::Idle(): stack(new unsigned[STACK_SIZE]), ss(0), sp(0){
 }
 
 Idle::~Idle(){
+	lockCS();
 	delete[] stack;
+	unlockCS();
 }
 
-int Idle::init(){
-	if (idle) return 0;
-	idle = new Idle();
-	return 1;
-}
-
-void Idle::end(){
-	if (!idle) return;
-	delete idle;
-	idle = 0;
-}
+int Idle::isIdle = 0;
 
 void interrupt timer(...){
-
 	if (!context_switch_on_demand && cntr) --cntr;
-	if (!PCB::blockCS && (context_switch_on_demand || (PCB::running->timeSlice != 0 && cntr == 0))) {
+	if (!blockCS && (context_switch_on_demand || (PCB::running->timeSlice != 0 && cntr == 0))) {
 
-		if (!Idle::idle){
+
+		#ifndef BCC_BLOCK_IGNORE
+		asm {
+			mov tsp, sp
+			mov tss, ss
+		}
+		#endif
+
+		if (!Idle::isIdle){
 			if (!PCB::running->finished){
-				#ifndef BCC_BLOCK_IGNORE
-				asm {
-					mov tsp, sp
-					mov tss, ss
-				}
-				#endif
+
 				PCB::running->sp = tsp;
 				PCB::running->ss = tss;
 
@@ -163,58 +162,47 @@ void interrupt timer(...){
 				PCB::running->stack = 0;
 			}
 		}
+		else {
+			Idle::idle.sp = tsp;
+			Idle::idle.ss = tss;
+		}
 
 
 		PCB::running = Scheduler::get();
 		if (!PCB::running){
-			if (Idle::init()){
-				tsp = Idle::idle->sp;
-				tss = Idle::idle->ss;
 
-				cntr = 1;
+			Idle::isIdle = 1;
 
-				#ifndef BCC_BLOCK_IGNORE
-				asm {
-					mov sp, tsp
-					mov ss, tss
-				}
-				#endif
-			}
+			tsp = Idle::idle.sp;
+			tss = Idle::idle.ss;
 
+			cntr = 1;
 		}
 		else {
-			Idle::end();
+			Idle::isIdle = 0;
 
 			tsp = PCB::running->sp;
 			tss = PCB::running->ss;
 
 			cntr = PCB::running->timeSlice;
 
-
-			#ifndef BCC_BLOCK_IGNORE
-			asm {
-				mov sp, tsp
-				mov ss, tss
-			}
-			#endif
-
-			((PCB *)PCB::running)->performSignals();
 		}
 
-
+		#ifndef BCC_BLOCK_IGNORE
+		asm {
+			mov sp, tsp
+			mov ss, tss
+		}
+		#endif
 
 	}
-
-
-	if(!context_switch_on_demand) for (KernelSem::semaphoreList.begin();KernelSem::semaphoreList.end();KernelSem::semaphoreList.next()){
-			(*(KernelSem::semaphoreList.get()))--;
-	}
-
 
 	#ifndef BCC_BLOCK_IGNORE
 	if(!context_switch_on_demand) asm int 0x60
 	else context_switch_on_demand = 0;
 	#endif
+
+	if (PCB::running) ((PCB *)PCB::running)->performSignals();
 
 }
 
@@ -227,6 +215,11 @@ void interrupt timer(...){
 extern void tick();
 
 void interrupt userTimer(...){
+
+	for (List<KernelSem *>::iterator i = KernelSem::semaphoreList.begin(); i != KernelSem::semaphoreList.end();++i){
+		(*(*i))--;
+	}
+
 	tick();
 }
 
@@ -273,53 +266,64 @@ void restore(){
 }
 
 void PCB::registerHandler(SignalId signal, SignalHandler handler){
-	handlers[signal]+=(handler);
+	handlers[signal].push(handler);
 }
 
 void PCB::unregisterHandler(SignalId signal){
-	handlers[signal] = List<SignalHandler>();
+	handlers[signal] = Queue<SignalHandler>();
 }
 
 void PCB::swap(SignalId id, SignalHandler hand1, SignalHandler hand2){
 	SignalHandler *h1 = 0;
 	SignalHandler *h2 = 0;
 
-	for(handlers[id].begin();handlers[id].end();handlers[id].next()){
-		if (handlers[id].get() == hand1){
-			h1 = &handlers[id].get();
+	lockCS();
+	for(Queue<SignalHandler>::iterator i =  handlers[id].begin(); i != handlers[id].end();++i){
+		if (*i == hand1){
+			h1 = &*i;
 		}
-		if (handlers[id].get() == hand2){
-			h2 = &handlers[id].get();
+		if (*i == hand2){
+			h2 = &*i;
 		}
 	}
+
 
 	if (!h1 && !h2) return;
 
 	*h1 = hand2;
 	*h2 = hand1;
 
+	unlockCS();
+
 }
 
 void PCB::signal(SignalId signal){
 	if (signal > 15) return;
 
-	if (PCB::running == this && (!((1 << onHold.get()) & blockSignal) && !((1 << onHold.get()) & blockSignalGlobal))){
+	if (PCB::running == this && (!((1 << signal) & blockSignal) && !((1 << signal) & blockSignalGlobal))){
 		performSignal(signal);
 	}
 	else {
-		onHold.insert(signal);
+		onHold.push(signal);
 	}
 }
 
 void PCB::performSignals(){
-	for(onHold.begin(); onHold.end(); onHold.next()){
-		if (!((1 << onHold.get()) & blockSignal) && !((1 << onHold.get()) & blockSignalGlobal)){
-			performSignal(onHold.del());
+	for(Queue<SignalId>::iterator i = onHold.begin(); i != onHold.end(); ++i){
+		if (!((1 << *i) & blockSignal) && !((1 << *i) & blockSignalGlobal)){
+			performSignal(onHold.erase(i));
 		}
 	}
 }
 
 void signal0(){
+
+	if (!PCB::running){
+		lockCS();
+		printf("<SIGNAL0> Fatal error not running\n");
+		unlockCS();
+		return;
+	}
 
 	if (PCB::running->myFather) PCB::running->myFather->signal(1);
 
@@ -331,16 +335,15 @@ void signal0(){
 
 	PCB::running->finished = 1;
 
-	PCB::unlockCS();
-
+	unlockCS();
 	dispatch();
 }
 
 void PCB::performSignal(SignalId signal){
 	lockCS();
 
-	for(handlers[signal].begin();handlers[signal].end();handlers[signal].next()){
-		(*handlers[signal].get())();
+	for(Queue<SignalHandler>::iterator i = handlers[signal].begin(); i != handlers[signal].end();++i){
+		(*(*i))();
 	}
 
 	if (signal == 0) signal0();

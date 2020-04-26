@@ -1,38 +1,117 @@
 #ifndef _queue_h_
 #define _queue_h_
+
+#include <stdio.h>
+
+void lockCS();
+void unlockCS();
+
 template<class T>
 class Queue{
 	struct Node {
 		T info;
 		Node * next;
 		Node(T t): info(t), next(0){}
-		Node(const Node& n): info(n.info), next(n.next){}
+		Node(const Node& n): info(n.info), next((n.next) ? (new Node(*(n.next))) : 0){}
 	};
 
 	Node *front;
 	Node *back;
-	Node *i;
 public:
+
+	class iterator{
+		iterator(Node *_i, Queue* _q): i(_i), q(_q){}
+		Node * i;
+		Queue * q;
+	public:
+		//prefix
+		Queue<T>::iterator& operator++();
+		//postfix
+		Queue<T>::iterator operator++(int);
+		//dereference
+		T& operator*(){
+			if (!i) {
+				lockCS();
+				printf("<QUEUE> dereferencing null\n");
+				unlockCS();
+			}
+			return i->info;
+		}
+
+		int operator==(Queue<T>::iterator& it){
+			return (i == it.i);
+		}
+
+		int operator!=(Queue<T>::iterator& it){
+			return (i != it.i);
+		}
+		friend Queue;
+	};
+
 	Queue();
 	Queue(const Queue<T>&);
 
 	~Queue();
 	Queue<T>& operator=(const Queue<T>&);
-	void insert(T);
-	T remove();
+	void push(T);
+	T pop();
 
-	void begin();
-	void next();
-	int end();
-	T& get();
-	T del();
+	Queue<T>::iterator end(){
+		return iterator(0, this);
+	}
+
+	Queue<T>::iterator begin(){
+		return iterator(front, this);
+	}
+
+	T erase(Queue<T>::iterator& it){
+		T info;
+		if (!it.i){
+			lockCS();
+			printf("<QUEUE> Fatal no current to erase\n");
+			unlockCS();
+		}
+		else if (it.i == front){
+			it.i = 0;
+			info = this->pop();
+		}
+		else {
+			info = it.i->info;
+
+			Node * temp = front;
+
+			while (temp->next != it.i) temp = temp->next;
+
+			temp->next = it.i->next;
+
+			if (back == it.i) back = temp;
+			delete it.i;
+
+			it.i = temp;
+		}
+
+		return info;
+	}
+
+	friend Queue<T>::iterator& iterator::operator++(){
+		if (!i) {i = q->front;}
+		else{i = i->next;}
+		return *this;
+	}
+	friend Queue<T>::iterator iterator::operator++(int){
+		Queue<T>::iterator it = *this;
+		if (!i) {i = q->front;}
+		else{i = i->next;}
+		return it;
+	}
 };
 
+//Basic
 template<class T>
-Queue<T>::Queue(): front(0), back(0), i(0){}
+Queue<T>::Queue(): front(0), back(0){}
 
 template<class T>
-Queue<T>::Queue(const Queue<T>& q): front(0), back(0), i(0){
+Queue<T>::Queue(const Queue<T>& q): front(0), back(0){
 	if(q.front){
 		front = new Node(*q.front);
 
@@ -45,18 +124,22 @@ Queue<T>::Queue(const Queue<T>& q): front(0), back(0), i(0){
 }
 
 template<class T>
-Queue<T>& Queue<T>::operator =(const Queue<T> & q){
+Queue<T>& Queue<T>::operator=(const Queue<T> & q){
 	if(q.front){
-			front = new Node(*q.front);
+		front = new Node(*q.front);
 
-			Node * curr = front;
-			while (curr->next){
-				curr = curr->next;
-			}
-			back = curr;
+		Node * curr = front;
+		while (curr->next){
+			curr = curr->next;
 		}
+		back = curr;
+	}
+	else {
+		front = 0;
+		back = 0;
+	}
 
-		return *this;
+	return *this;
 }
 
 template<class T>
@@ -70,9 +153,16 @@ Queue<T>::~Queue(){
 }
 
 template<class T>
-void Queue<T>::insert(T t){
+void Queue<T>::push(T t){
 
 	Node * temp = new Node(t);
+
+	if (!temp){
+		lockCS();
+		printf("<QUEUE> Fatal new Node\n");
+		unlockCS();
+	}
+
 	if (!front){
 		front = temp;
 		back = temp;
@@ -84,10 +174,14 @@ void Queue<T>::insert(T t){
 }
 
 template<class T>
-T Queue<T>::remove(){
+T Queue<T>::pop(){
 	T info;
 
-	if (!front) info = 0;
+	if (!front) {
+		lockCS();
+		printf("<QUEUE> Fatal Empty Queue\n");
+		unlockCS();
+	}
 	else if (front == back){
 		info = front->info;
 		delete front;
@@ -102,53 +196,5 @@ T Queue<T>::remove(){
 	}
 
 	return info;
-}
-//sets iterator to head
-template<class T>
-void Queue<T>::begin(){
-	i = front;
-}
-//moves iterator
-template<class T>
-void Queue<T>::next(){
-	if(i) i = i->next;
-	else i = front;
-}
-//gets iterator
-template<class T>
-T& Queue<T>::get(){
-	return i->info;
-}
-template<class T>
-T Queue<T>::del(){
-	T info;
-	if (!i) info = 0;
-	else if (i == front){
-        i = 0;
-		info = this->remove();
-	}
-	else {
-		info = i->info;
-
-		Node * temp = front;
-
-		while (temp->next != i) temp = temp->next;
-
-		temp->next = i->next;
-
-        if (back == i) back = temp;
-		delete i;
-
-        i = temp;
-	}
-
-	return info;
-}
-
-template<class T>
-int Queue<T>::end(){
-	if (i) return 1;
-
-	return 0;
 }
 #endif

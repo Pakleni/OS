@@ -27,6 +27,8 @@ mainThread::mainThread() : Thread(0, defaultTimeSlice){
 
 void mainThread::run(){}
 
+#include "List.h"
+#include <iostream.h>
 
 int main(int argc, char * argv[]){
 
@@ -41,4 +43,5 @@ int main(int argc, char * argv[]){
 	restore();
 
 	return ret;
+
 }
